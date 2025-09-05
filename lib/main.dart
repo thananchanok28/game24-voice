@@ -1,194 +1,284 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'dart:math';
 
 void main() {
-  runApp(Game24App());
+  runApp(const Game24App());
 }
 
 class Game24App extends StatelessWidget {
+  const Game24App({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'เกม 24 (ผู้พิการทางสายตา)',
-      home: Game24HomePage(),
-      debugShowCheckedModeBanner: false,
+      title: 'เกม 24 ผู้พิการทางสายตา',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: const Game24Page(),
     );
   }
 }
 
-class Game24HomePage extends StatefulWidget {
+class Game24Page extends StatefulWidget {
+  const Game24Page({super.key});
+
   @override
-  _Game24HomePageState createState() => _Game24HomePageState();
+  State<Game24Page> createState() => _Game24PageState();
 }
 
-class _Game24HomePageState extends State<Game24HomePage> {
-  final FlutterTts flutterTts = FlutterTts();
-  final stt.SpeechToText speech = stt.SpeechToText();
-  String spokenText = '';
-  List<int> currentNumbers = [];
+class _Game24PageState extends State<Game24Page> {
+  final FlutterTts _flutterTts = FlutterTts();
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  final Random _random = Random();
+
+  List<int> numbers = [];
+  String recognizedText = "";
+  bool isListening = false;
+  final TextEditingController _textController = TextEditingController();
+
+  final Map<String, String> numberThai = {
+    "1": "หนึ่ง",
+    "2": "สอง",
+    "3": "สาม",
+    "4": "สี่",
+    "5": "ห้า",
+    "6": "หก",
+    "7": "เจ็ด",
+    "8": "แปด",
+    "9": "เก้า",
+  };
+
+  final Map<String, String> opThai = {
+    "+": "บวก",
+    "-": "ลบ",
+    "*": "คูณ",
+    "/": "หาร",
+  };
 
   @override
   void initState() {
     super.initState();
-    initSpeech();
-    welcomeMessage(); // เริ่มพูดทันที
+    _flutterTts.setLanguage("th-TH");
+    _speakIntro();
+    _generateNumbers();
   }
 
-  Future<void> initSpeech() async {
-    await speech.initialize();
+  Future<void> _speak(String text) async {
+    await _flutterTts.stop();
+    await _flutterTts.speak(text);
   }
 
-  Future<void> welcomeMessage() async {
-    await flutterTts.setLanguage("th-TH");
-    await flutterTts.setSpeechRate(0.5);
-
-    await flutterTts.speak("ยินดีต้อนรับสู่เกม 24");
-    await flutterTts.awaitSpeakCompletion(true);
-
-    await flutterTts.speak("เกมนี้สำหรับผู้พิการทางสายตา");
-    await flutterTts.awaitSpeakCompletion(true);
-
-    await flutterTts.speak("คุณสามารถพูดว่า เริ่มเกม เพื่อเริ่มเล่น");
-    await flutterTts.awaitSpeakCompletion(true);
-
-    await flutterTts.speak("หรือพูดว่า ขอเลขซ้ำ เพื่อฟังเลขอีกครั้ง");
-    await flutterTts.awaitSpeakCompletion(true);
-
-    listenForCommand(); // เริ่มฟังทันที
+  Future<void> _speakIntro() async {
+    await _speak(
+        "ยินดีต้อนรับสู่เกม 24 สำหรับผู้พิการทางสายตา คุณจะได้ยินตัวเลข 4 ตัว "
+        "จงใช้บวก ลบ คูณ หาร เพื่อให้ได้ 24 "
+        "คุณสามารถพูดว่า สุ่มเลข เพื่อเริ่มใหม่ พูดว่า ฟัง เพื่อให้ระบบฟังคำตอบ หรือพูดว่า เลิกเล่น เพื่อออกจากเกม");
   }
 
-  Future<void> speak(String text) async {
-    await flutterTts.setLanguage("th-TH");
-    await flutterTts.setSpeechRate(0.5);
-    await flutterTts.speak(text);
-  }
-
-  void generateNewGame() {
-    Random random = Random();
-    currentNumbers = List.generate(4, (_) => random.nextInt(9) + 1);
-    String numberText = currentNumbers.join(", ");
-    speak("ตัวเลขคือ $numberText");
-    setState(() {});
-  }
-
-  void repeatNumbers() {
-    if (currentNumbers.isNotEmpty) {
-      String numberText = currentNumbers.join(", ");
-      speak("ตัวเลขคือ $numberText");
-    } else {
-      speak("ยังไม่มีตัวเลข กรุณาเริ่มเกมก่อน");
-    }
-  }
-
-  void listenForCommand() async {
-    bool available = await speech.initialize();
-    if (available) {
-      speech.listen(
-        localeId: "th_TH",
-        onResult: (result) {
-          String command = result.recognizedWords;
-          setState(() {
-            spokenText = command;
-          });
-
-          if (command.contains("เริ่มเกม")) {
-            speak("เริ่มเกม");
-            generateNewGame();
-          } else if (command.contains("ขอเลขซ้ำ")) {
-            repeatNumbers();
-          } else if (command.contains("ได้คำตอบแล้ว")) {
-            speak("ฉันกำลังฟัง");
-            listenForAnswer();
-          } else {
-            speak("ไม่เข้าใจคำสั่ง");
-          }
-        },
-      );
-    } else {
-      speak("ไม่สามารถเปิดไมโครโฟนได้");
-    }
-  }
-
-  void listenForAnswer() async {
-    bool available = await speech.initialize();
-    if (available) {
-      speech.listen(
-        localeId: "th_TH",
-        onResult: (result) {
-          String answer = result.recognizedWords;
-          setState(() {
-            spokenText = answer;
-          });
-          speak("คุณพูดว่า $answer");
-          // ตรวจคำตอบได้ที่นี่
-        },
-      );
-    }
-  }
-
-  void exitApp() {
-    speak("ขอบคุณที่เล่นเกม 24").then((_) {
-      Navigator.of(context).maybePop();
+  void _generateNumbers() {
+    setState(() {
+      numbers = List.generate(4, (_) => _random.nextInt(9) + 1);
     });
+    _speak("เลขของคุณคือ ${numbers.join(", ")}");
+  }
+
+  Future<void> _listen() async {
+    bool available = await _speech.initialize();
+    if (available) {
+      setState(() => isListening = true);
+      _speech.listen(onResult: (result) {
+        setState(() {
+          recognizedText = result.recognizedWords;
+        });
+        if (result.finalResult) {
+          setState(() => isListening = false);
+          _checkAnswer(recognizedText);
+        }
+      });
+    } else {
+      await _speak("ไม่สามารถเปิดไมโครโฟนได้");
+    }
+  }
+
+  void _checkAnswer(String answer) {
+    Map<String, String> thaiToSymbol = {
+      "บวก": "+",
+      "ลบ": "-",
+      "คูณ": "*",
+      "หาร": "/",
+      "หนึ่ง": "1",
+      "สอง": "2",
+      "สาม": "3",
+      "สี่": "4",
+      "ห้า": "5",
+      "หก": "6",
+      "เจ็ด": "7",
+      "แปด": "8",
+      "เก้า": "9"
+    };
+
+    String expr = answer;
+    thaiToSymbol.forEach((k, v) {
+      expr = expr.replaceAll(k, v);
+    });
+
+    bool correct = false;
+    try {
+      double result = _evaluateExpression(expr);
+      if ((result - 24).abs() < 0.001) {
+        correct = true;
+      }
+    } catch (_) {}
+
+    if (correct) {
+      _speak("ถูกต้อง!");
+    } else {
+      String? solution = _find24Solution(numbers);
+      if (solution != null) {
+        String thaiSolution = _convertToThaiExpression(solution);
+        _speak("ผิด! วิธีทำที่ถูกต้องคือ $thaiSolution เท่ากับยี่สิบสี่");
+      } else {
+        _speak("ผิด! ไม่มีวิธีทำให้ได้ 24 กับเลขนี้");
+      }
+    }
+
+    Future.delayed(const Duration(seconds: 4), () {
+      _generateNumbers();
+      _listen();
+    });
+  }
+
+  double _evaluateExpression(String expr) {
+    List<String> tokens = [];
+    String current = "";
+    for (int i = 0; i < expr.length; i++) {
+      String c = expr[i];
+      if ("+-*/".contains(c)) {
+        if (current.isNotEmpty) {
+          tokens.add(current);
+          current = "";
+        }
+        tokens.add(c);
+      } else {
+        current += c;
+      }
+    }
+    if (current.isNotEmpty) tokens.add(current);
+
+    double result = double.parse(tokens[0]);
+    for (int i = 1; i < tokens.length; i += 2) {
+      String op = tokens[i];
+      double num = double.parse(tokens[i + 1]);
+      if (op == "+") result += num;
+      if (op == "-") result -= num;
+      if (op == "*") result *= num;
+      if (op == "/") result /= num;
+    }
+    return result;
+  }
+
+  String _convertToThaiExpression(String expr) {
+    String thai = expr;
+    numberThai.forEach((k, v) {
+      thai = thai.replaceAll(k, v);
+    });
+    opThai.forEach((k, v) {
+      thai = thai.replaceAll(k, v);
+    });
+    return thai;
+  }
+
+  String? _find24Solution(List<int> nums) {
+    List<String> ops = ["+", "-", "*", "/"];
+    List<List<int>> permutations = _permute(nums);
+    for (var p in permutations) {
+      for (var o1 in ops) {
+        for (var o2 in ops) {
+          for (var o3 in ops) {
+            List<String> patterns = [
+              "(${p[0]}$o1${p[1]})$o2(${p[2]}$o3${p[3]})",
+              "(${p[0]}$o1(${p[1]}$o2${p[2]}))$o3${p[3]}",
+              "${p[0]}$o1(${p[1]}$o2(${p[2]}$o3${p[3]}))",
+              "(${p[0]}$o1${p[1]})$o2${p[2]}$o3${p[3]}",
+              "${p[0]}$o1${p[1]}$o2${p[2]}$o3${p[3]}"
+            ];
+            for (var pattern in patterns) {
+              try {
+                if ((_evaluateExpression(pattern) - 24).abs() < 0.001) {
+                  return pattern;
+                }
+              } catch (_) {}
+            }
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  List<List<int>> _permute(List<int> nums) {
+    if (nums.length == 1) return [nums];
+    List<List<int>> result = [];
+    for (int i = 0; i < nums.length; i++) {
+      int n = nums[i];
+      List<int> rest = List.from(nums)..removeAt(i);
+      for (var p in _permute(rest)) {
+        result.add([n, ...p]);
+      }
+    }
+    return result;
+  }
+
+  void _submitTextAnswer() {
+    _checkAnswer(_textController.text);
+    _textController.clear();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("เกม 24 (ผู้พิการทางสายตา)"),
-        backgroundColor: Colors.deepPurple,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            Text(
-              'แตะปุ่มหรือพูดคำสั่งเสียง',
-              style: TextStyle(fontSize: 20),
-            ),
-            SizedBox(height: 20),
-
-            if (currentNumbers.isNotEmpty)
-              Text(
-                'ตัวเลข: ${currentNumbers.join(', ')}',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      appBar: AppBar(title: const Text("เกม 24 ผู้พิการทางสายตา")),
+      body: Container(
+        color: Colors.blue[50],
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text("เลขสุ่ม: ${numbers.join(", ")}",
+                  style: const TextStyle(fontSize: 24)),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _generateNumbers,
+                child: const Text("สุ่มเลขใหม่"),
               ),
-
-            SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: generateNewGame,
-              child: Text("เริ่มโจทย์ใหม่"),
-            ),
-            ElevatedButton(
-              onPressed: repeatNumbers,
-              child: Text("ขอเลขซ้ำ"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                speak("ฉันกำลังฟัง");
-                listenForAnswer();
-              },
-              child: Text("พูดคำตอบ"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                flutterTts.speak("ทดสอบเสียงพูด");
-              },
-              child: Text("ทดสอบเสียง"),
-            ),
-            SizedBox(height: 20),
-            Text('คุณพูดว่า: $spokenText'),
-            Spacer(),
-            ElevatedButton(
-              onPressed: exitApp,
-              child: Text("ออกจากแอป"),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            ),
-          ],
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _listen,
+                child: Text(isListening ? "กำลังฟัง..." : "พูดคำตอบ"),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 50),
+                child: TextField(
+                  controller: _textController,
+                  decoration: const InputDecoration(
+                    labelText: "พิมพ์คำตอบ",
+                  ),
+                  onSubmitted: (_) => _submitTextAnswer(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text("สิ่งที่ได้ยิน: $recognizedText",
+                  style: const TextStyle(fontSize: 18)),
+              const Spacer(),
+              const Text(
+                "พัฒนาระบบล่าสุดเมื่อวันที่ 3 ก.ย. 68",
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
         ),
       ),
     );
